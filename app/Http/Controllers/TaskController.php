@@ -10,63 +10,81 @@ use Illuminate\Support\Facades\Auth;
 
 class TaskController extends Controller
 {
-    public function index(int $id)
+    public function index(Folder $folder)
     {
         // ユーザーのフォルダを取得する
         $folders = Auth::user()->folders()->get();
         //$folders = Folder::all();
 
-        $current_folder = Folder::find($id);
+        //$current_folder = Folder::find($id);
+
+        // if(is_null($current_folder)) {
+        //     abort(404);
+        // }
+
+        // if(Auth::user()->id !== $folder->user_id) {
+        //     abort(403);
+        // }
 
         //$tasks = Task::where('folder_id', $current_folder->id)->get();
         //上をhasManyを使って書くと
-        $tasks = $current_folder->tasks()->get();
+        $tasks = $folder->tasks()->get();
 
         return view('tasks/index', [
             'folders' => $folders,
-            'current_folder_id' => $current_folder->id,
+            'current_folder_id' => $folder->id,
             'tasks' => $tasks,
         ]);
     }
 
-    public function showCreateForm(int $id)
+    public function showCreateForm(Folder $folder)
     {
         return view('tasks/create', [
-            'folder_id' => $id
+            'folder_id' => $folder->id,
         ]);
     }
 
-    public function create(int $id, CreateTask $request)
+    public function create(Folder $folder, CreateTask $request)
     {
-        $current_folder = Folder::find($id);
+        //$current_folder = Folder::find($id);
 
         $task = new Task();
         $task->title = $request->title;
         $task->due_date = $request->due_date;
 
-        $current_folder->tasks()->save($task);
+        $folder->tasks()->save($task);
 
         return redirect()->route('tasks.index', [
-            'id' => $current_folder->id,
+            'folder' => $folder->id,
         ]);
     }
 
     /**
      * GET /folders/{id}/tasks/{task_id}/edit
      */
-    public function showEditForm(int $id, int $task_id)
+    public function showEditForm(Folder $folder, Task $task)
     {
-        $task = Task::find($task_id);
+        $this->checkRelation($folder, $task);
+        // if($folder->id !== $task->folder_id) {
+        //     abort(404);
+        // }
+        //$task = Task::find($task_id);
+        
 
         return view('tasks/edit', [
             'task' => $task,
         ]);
     }
 
-    public function edit(int $id, int $task_id, EditTask $request)
+    public function edit(Folder $folder, Task $task, EditTask $request)
     {
+        $this->checkRelation($folder, $task);
+
+        // if($folder->id !== $task->folder_id) {
+        //     abort(404);
+        // }
         // 1
-        $task = Task::find($task_id);
+        //$task = Task::find($task_id);
 
         // 2
         $task->title = $request->title;
@@ -76,7 +94,14 @@ class TaskController extends Controller
 
         // 3
         return redirect()->route('tasks.index', [
-            'id' => $task->folder_id,
+            'folder' => $task->folder_id,
         ]);
+    }
+
+    private function checkRelation(Folder $folder, Task $task)
+    {
+        if($folder->id !== $task->folder_id) {
+            abort(404);
+        }
     }
 }
